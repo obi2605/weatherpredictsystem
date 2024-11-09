@@ -1,27 +1,37 @@
 #!/bin/bash
 
+# Prompt the user to enter a city name using Zenity
+CITY=$(zenity --entry --title="Weather Prediction" --text="Enter the city name:")
+
 # Ensure city name is provided
-if [ -z "$1" ]; then
-    echo "Usage: ./predict_tomorrow_weather.sh <city_name>"
+if [ -z "$CITY" ]; then
+    zenity --error --text="City name is required to make a prediction."
     exit 1
 fi
 
-CITY="$1"
-
-# Fetch current weather data for the specified city
-./fetch_weather_data2.sh "$CITY"
+# Fetch current weather data for the specified city with a progress dialog
+(
+    echo "10"; sleep 1
+    echo "# Fetching current weather data for $CITY..."
+    ./fetch_weather_data2.sh "$CITY" && echo "50" || (zenity --error --text="Failed to fetch weather data for $CITY." && exit 1)
+    echo "75"
+) | zenity --progress --title="Fetching Weather Data" --percentage=0 --auto-close
 
 # Check if weather data file was created
 if [ ! -f weather_data.csv ]; then
-    echo "Weather data for $CITY not available. Cannot make prediction."
+    zenity --error --text="Weather data for $CITY not available. Cannot make prediction."
     exit 1
 fi
 
+# Train the model with another progress dialog
+(
+    echo "10"; sleep 1
+    echo "# Training weather prediction model..."
+    python3 train_weather_model2.py && echo "100" || (zenity --error --text="Model training failed." && exit 1)
+) | zenity --progress --title="Training Model" --percentage=0 --auto-close
 
-python3 train_weather_model2.py
-
-# Use Python to load the model and make a prediction
-python3 - <<END
+# Use Python to load the model and make a prediction, storing output in a variable
+PREDICTION=$(python3 - <<END
 import pandas as pd
 import joblib
 
@@ -36,7 +46,14 @@ model = joblib.load("weather_model.pkl")
 
 # Predict tomorrow's temperature
 predicted_temp = model.predict(X_today)[0]
-
-print(f"Predicted temperature for tomorrow in $CITY: {predicted_temp:.2f}°C")
+print(f"{predicted_temp:.2f}")
 END
+)
 
+# Display the prediction to the user using Zenity
+if [ $? -eq 0 ]; then
+    zenity --info --title="Weather Prediction" --text="Predicted temperature for tomorrow in $CITY: ${PREDICTION}°C"
+else
+    zenity --error --text="Failed to predict tomorrow's weather."
+    exit 1
+fi
