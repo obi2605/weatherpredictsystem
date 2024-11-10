@@ -9,7 +9,7 @@ if [ -z "$1" ]; then
 fi
 
 CITY="$1"
-API_KEY="4f7e673e2d42333f1904de8de533ddaa"
+API_KEY="your-api-key"
 URL="https://api.openweathermap.org/data/2.5/weather?q=${CITY}&appid=${API_KEY}&units=metric"
 
 # Fetch weather data
