@@ -17,11 +17,14 @@ fi
     echo "75"
 ) | zenity --progress --title="Fetching Weather Data" --percentage=0 --auto-close
 
-# Check if weather data file was created
-if [ ! -f weather_data.csv ]; then
+# Check if today's weather data file was created
+if [ ! -f today_weather.txt ]; then
     zenity --error --text="Weather data for $CITY not available. Cannot make prediction."
     exit 1
 fi
+
+# Load today's weather data
+source today_weather.txt
 
 # Train the model with another progress dialog
 (
@@ -35,7 +38,7 @@ PREDICTION=$(python3 - <<END
 import pandas as pd
 import joblib
 
-# Load today's weather data
+# Load today's weather data for prediction
 data = pd.read_csv("weather_data.csv")
 
 # Extract features for prediction
@@ -50,9 +53,14 @@ print(f"{predicted_temp:.2f}")
 END
 )
 
-# Display the prediction to the user using Zenity
+# Display both today's weather and tomorrow's prediction in one Zenity window
 if [ $? -eq 0 ]; then
-    zenity --info --title="Weather Prediction" --text="Predicted temperature for tomorrow in $CITY: ${PREDICTION}°C"
+    zenity --info --title="Weather Prediction" --text="Weather for $CITY:
+Today's Temperature: $temp°C
+Today's Humidity: $humidity%
+Today's Wind Speed: $wind_speed m/s
+
+Predicted Temperature for Tomorrow: ${PREDICTION}°C"
 else
     zenity --error --text="Failed to predict tomorrow's weather."
     exit 1
